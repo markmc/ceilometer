@@ -37,17 +37,8 @@ PUBLISH_OPTS = [
 ]
 
 
-def register_opts(config):
-    """Register the options for publishing metering messages.
-    """
-    config.register_opts(PUBLISH_OPTS)
-
-
-register_opts(cfg.CONF)
-
-
 class MeterPublisher(plugin.PublisherBase):
-    def publish_counters(self, context, counters, source):
+    def publish_counters(self, conf, context, counters, source):
         """Send a metering message for publishing
 
         :param context: Execution context from the service or RPC call
@@ -55,21 +46,27 @@ class MeterPublisher(plugin.PublisherBase):
         :param source: counter source
         """
 
+        conf.register_opts(PUBLISH_OPTS)
+        meter_api.register_opts(conf)
+
         meters = [
             meter_api.meter_message_from_counter(counter,
-                                                 cfg.CONF.metering_secret,
+                                                 conf.metering_secret,
                                                  source)
             for counter in counters
         ]
 
-        topic = cfg.CONF.metering_topic
+        # FIXME(markmc): cache this?
+        rpc_impl = rpc.get_impl(conf)
+
+        topic = conf.metering_topic
         msg = {
             'method': 'record_metering_data',
             'version': '1.0',
             'args': {'data': meters},
         }
         LOG.debug('PUBLISH: %s', str(msg))
-        rpc.cast(context, topic, msg)
+        rpc_impl.cast(conf, context, topic, msg)
 
         for meter_name, meter_list in itertools.groupby(
                 sorted(meters, key=lambda m: m['counter_name']),
@@ -79,4 +76,4 @@ class MeterPublisher(plugin.PublisherBase):
                 'version': '1.0',
                 'args': {'data': list(meter_list)},
             }
-            rpc.cast(context, topic + '.' + meter_name, msg)
+            rpc_impl.cast(conf, context, topic + '.' + meter_name, msg)

@@ -32,8 +32,6 @@ OPTS = [
                ),
 ]
 
-cfg.CONF.register_opts(OPTS)
-
 LOG = log.getLogger(__name__)
 
 PUBLISHER_NAMESPACE = 'ceilometer.publisher'
@@ -106,7 +104,8 @@ class Pipeline(object):
 
     """
 
-    def __init__(self, cfg, publisher_manager, transformer_manager):
+    def __init__(self, conf, cfg, publisher_manager, transformer_manager):
+        self._conf = conf
         self.cfg = cfg
 
         try:
@@ -236,6 +235,7 @@ class Pipeline(object):
         LOG.audit("Pipeline %s: Publishing counters", self)
         self.publisher_manager.map(self.publishers,
                                    self._publish_counters_to_one_publisher,
+                                   conf=self._conf,
                                    ctxt=ctxt,
                                    counters=transformed_counters,
                                    source=source,
@@ -303,11 +303,11 @@ class PipelineManager(object):
 
     """
 
-    def __init__(self, cfg, publisher_manager):
+    def __init__(self, conf cfg, publisher_manager):
         """Create the pipeline manager"""
-        self._setup_pipelines(cfg, publisher_manager)
+        self._setup_pipelines(conf, cfg, publisher_manager)
 
-    def _setup_pipelines(self, cfg, publisher_manager):
+    def _setup_pipelines(self, conf, cfg, publisher_manager):
         """Setup the pipelines according to config.
 
         The top of the cfg is a list of pipeline definitions.
@@ -350,7 +350,7 @@ class PipelineManager(object):
 
         """
         transformer_manager = TransformerExtensionManager()
-        self.pipelines = [Pipeline(pipedef, publisher_manager,
+        self.pipelines = [Pipeline(conf, pipedef, publisher_manager,
                                    transformer_manager)
                           for pipedef in cfg]
 
@@ -363,11 +363,12 @@ class PipelineManager(object):
         return Publisher(self.pipelines, context, source)
 
 
-def setup_pipeline(publisher_manager):
+def setup_pipeline(conf, publisher_manager):
     """Setup pipeline manager according to yaml config file."""
-    cfg_file = cfg.CONF.pipeline_cfg_file
+    conf.register_opts(OPTS)
+    cfg_file = conf.pipeline_cfg_file
     if not os.path.exists(cfg_file):
-        cfg_file = cfg.CONF.find_file(cfg_file)
+        cfg_file = conf.find_file(cfg_file)
 
     LOG.debug("Pipeline config file: %s", cfg_file)
 
@@ -377,5 +378,6 @@ def setup_pipeline(publisher_manager):
     pipeline_cfg = yaml.safe_load(data)
     LOG.info("Pipeline config: %s", pipeline_cfg)
 
-    return PipelineManager(pipeline_cfg,
+    return PipelineManager(conf,
+                           pipeline_cfg,
                            publisher_manager)

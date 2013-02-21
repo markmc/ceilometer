@@ -293,15 +293,23 @@ def queue_get_for(context, topic, host):
 _RPCIMPL = None
 
 
-def _get_impl():
+def get_impl(conf):
+    conf.register_opts(rpc_opts)
+    try:
+        return = importutils.import_module(conf.rpc_backend)
+    except ImportError:
+        # For backwards compatibility with older nova config.
+        impl = conf.rpc_backend.replace('nova.rpc',
+                                        'nova.openstack.common.rpc')
+        return importutils.import_module(impl)
+
+
+_RPCIMPL = None
+
+
+def _get_impl(conf=None)
     """Delay import of rpc_backend until configuration is loaded."""
     global _RPCIMPL
     if _RPCIMPL is None:
-        try:
-            _RPCIMPL = importutils.import_module(CONF.rpc_backend)
-        except ImportError:
-            # For backwards compatibility with older nova config.
-            impl = CONF.rpc_backend.replace('nova.rpc',
-                                            'nova.openstack.common.rpc')
-            _RPCIMPL = importutils.import_module(impl)
+        _RPCIMPL = get_impl(conf=conf if conf else CONF)
     return _RPCIMPL

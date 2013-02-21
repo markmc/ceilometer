@@ -97,7 +97,7 @@ class PublisherBase(PluginBase):
     __metaclass__ = abc.ABCMeta
 
     @abc.abstractmethod
-    def publish_counters(self, context, counters, source):
+    def publish_counters(self, conf, context, counters, source):
         "Publish counters into final conduit."
 
 

@@ -94,6 +94,9 @@ class InstanceNotFoundException(InspectorException):
 #
 class Inspector(object):
 
+    def __init__(self, conf):
+        self._conf = conf
+
     def inspect_instances(self):
         """
         List the instances on the current host.

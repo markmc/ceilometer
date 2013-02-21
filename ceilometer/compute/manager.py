@@ -35,34 +35,34 @@ OPTS = [
                help='Inspector to use for inspecting the hypervisor layer'),
 ]
 
-cfg.CONF.register_opts(OPTS)
-
-
 LOG = log.getLogger(__name__)
 
 
-def get_hypervisor_inspector():
+def get_hypervisor_inspector(conf):
     try:
         namespace = 'ceilometer.compute.virt'
+        # FIXME(markmc): need to pass conf here
         mgr = driver.DriverManager(namespace,
-                                   cfg.CONF.hypervisor_inspector,
+                                   conf.hypervisor_inspector,
                                    invoke_on_load=True)
         return mgr.driver
     except ImportError as e:
         LOG.error("Unable to load the hypervisor inspector: %s" % (e))
-        return virt_inspector.Inspector()
+        return virt_inspector.Inspector(conf)
 
 
 class AgentManager(agent.AgentManager):
 
-    def __init__(self):
+    def __init__(self, conf=None):
+        self._conf = conf if conf else cfg.CONF
+        self._conf.register_opts(OPTS)
         super(AgentManager, self).__init__(
             extension_manager.ActivatedExtensionManager(
                 namespace='ceilometer.poll.compute',
-                disabled_names=cfg.CONF.disabled_compute_pollsters,
+                disabled_names=self._conf.disabled_compute_pollsters,
             ),
         )
-        self._inspector = get_hypervisor_inspector()
+        self._inspector = get_hypervisor_inspector(self._conf)
 
     def poll_instance(self, context, instance):
         """Poll one instance."""
@@ -74,7 +74,7 @@ class AgentManager(agent.AgentManager):
     def periodic_tasks(self, context, raise_on_error=False):
         """Tasks to be run at a periodic interval."""
         nv = nova_client.Client()
-        for instance in nv.instance_get_all_by_host(cfg.CONF.host):
+        for instance in nv.instance_get_all_by_host(self._conf.host):
             if getattr(instance, 'OS-EXT-STS:vm_state', None) != 'error':
                 self.poll_instance(context, instance)
 

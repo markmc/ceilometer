@@ -38,21 +38,21 @@ libvirt_opts = [
                     '(which is dependent on libvirt_type)'),
 ]
 
-CONF = cfg.CONF
-CONF.register_opts(libvirt_opts)
-
 
 class LibvirtInspector(virt_inspector.Inspector):
 
     per_type_uris = dict(uml='uml:///system', xen='xen:///', lxc='lxc:///')
 
-    def __init__(self):
+    def __init__(self, conf):
+        super(LibvirtInspector, self).__init__(conf)
+        self._conf.register_opts(libvirt_opts)
         self.uri = self._get_uri()
         self.connection = None
 
     def _get_uri(self):
-        return CONF.libvirt_uri or self.per_type_uris.get(CONF.libvirt_type,
-                                                          'qemu:///system')
+        return (self._conf.libvirt_uri or
+                self.per_type_uris.get(self._conf.libvirt_type,
+                                       'qemu:///system'))
 
     def _get_connection(self):
         if not self.connection or not self._test_connection():

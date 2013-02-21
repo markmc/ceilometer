@@ -27,14 +27,16 @@ LOG = log.getLogger(__name__)
 
 class AgentManager(object):
 
-    def __init__(self, extension_manager):
+    def __init__(self, conf, extension_manager):
+        self._conf = conf
         publisher_manager = dispatch.NameDispatchExtensionManager(
             namespace=pipeline.PUBLISHER_NAMESPACE,
             check_func=lambda x: True,
             invoke_on_load=True,
         )
 
-        self.pipeline_manager = pipeline.setup_pipeline(publisher_manager)
+        self.pipeline_manager = pipeline.setup_pipeline(self._conf,
+                                                        publisher_manager)
 
         self.pollster_manager = extension_manager
 
@@ -43,9 +45,11 @@ class AgentManager(object):
         """Used to invoke the plugins loaded by the ExtensionManager.
         """
         try:
+            # FIXME(markmc): nasty
+            self._conf.register_opts(counter.OPTS)
             publisher = manager.pipeline_manager.publisher(
                 context,
-                cfg.CONF.counter_source,
+                self._conf.counter_source,
             )
             with publisher as p:
                 LOG.debug('Polling and publishing %s', ext.name)

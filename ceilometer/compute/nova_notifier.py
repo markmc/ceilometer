@@ -41,9 +41,10 @@ _agent_manager = None
 def initialize_manager(agent_manager=None):
     global _agent_manager
     if not agent_manager:
-        cfg.CONF(args=[], project='ceilometer', prog='ceilometer-agent')
+        conf = cfg.ConfigOpts()
+        conf(args=[], project='ceilometer', prog='ceilometer-agent')
         # Instantiate a manager
-        _agent_manager = AgentManager()
+        _agent_manager = AgentManager(conf)
     else:
         _agent_manager = agent_manager
 
